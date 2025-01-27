@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import requests
 import ssl
 import urllib3
-import os
+import json
 
 # Disable SSL verification warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -20,8 +20,18 @@ TARGET_URL = 'https://157.245.100.93:3001/send-otp'
 @app.route('/forward-otp', methods=['POST'])
 def forward_otp():
     try:
-        # Get JSON data from the incoming request
+        # Print the raw request data for debugging
+        print("Received request data:", request.get_data())
+        
+        # Explicitly parse JSON data
+        if not request.is_json:
+            print("Request is not JSON")
+            return jsonify({
+                'error': 'Request must be JSON'
+            }), 400
+            
         data = request.get_json()
+        print("Parsed JSON data:", data)
         
         # Validate required fields
         if not data or 'phoneNumber' not in data or 'otp' not in data:
@@ -36,21 +46,20 @@ def forward_otp():
             verify=False,
             headers={'Content-Type': 'application/json'}
         )
-
-        # Return the response from the target server
+        
+        print("Target response:", response.text)
         return response.json()
 
+    except json.JSONDecodeError as e:
+        print("JSON decode error:", str(e))
+        return jsonify({
+            'error': f'Invalid JSON format: {str(e)}'
+        }), 400
     except Exception as e:
+        print("Error occurred:", str(e))
         return jsonify({
             'error': f'An error occurred: {str(e)}'
         }), 500
 
 if __name__ == '__main__':
-    # Get port from environment variable (Render will provide this)
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
-# Requirements for requirements.txt:
-# flask==2.0.1
-# requests==2.26.0
-# urllib3==1.26.7
+    app.run(host='0.0.0.0', port=10000, debug=True)
